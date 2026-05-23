@@ -2,6 +2,8 @@
 
 A physical dashboard for your Claude Code rate-limit usage. Runs a Python poller on your PC/Mac/Linux machine and pushes live stats to an **M5Stack Core2** over Wi-Fi, where they are displayed in a colour-coded UI.
 
+NOTE: It is fully vibe-coded. It might be ugly, it might be not optimal, but it works for me :)
+
 ```
 ┌─────────────────────────────────────┐
 │ CLAUDE METER        BAT:82%  14:32  │
