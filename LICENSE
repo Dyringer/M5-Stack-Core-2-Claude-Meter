@@ -1,0 +1,42 @@
+MIT License
+
+Copyright (c) 2026 The Claude Meter Contributors
+(all one of you, staring at a tiny screen wondering if you've used too many tokens)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+ADDITIONAL MORAL CLAUSES (non-binding, but we're watching)
+
+1. If this software causes you to obsessively refresh a small orange screen
+   every 30 seconds instead of doing actual work, that is a you problem.
+
+2. The authors accept no responsibility for the existential dread induced by
+   watching your 5-hour token budget tick toward 100% at 11:47 PM.
+
+3. You may not use this software to feel smug about your token efficiency.
+   You know what you did.
+
+4. If your M5Stack falls off your monitor because you used double-sided tape
+   instead of proper mounting hardware, the MIT License does not cover that.
+   Neither does your homeowner's insurance, probably.
+
+5. "It works on my machine" is a valid and complete bug report for this project,
+   because it literally only needs to work on your machine.
