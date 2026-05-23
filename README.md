@@ -2,8 +2,6 @@
 
 A physical dashboard for your Claude Code rate-limit usage. Runs a Python poller on your PC/Mac/Linux machine and pushes live stats to an **M5Stack Core2** over Wi-Fi, where they are displayed in a colour-coded UI.
 
-NOTE: It is fully vibe-coded. It might be ugly, it might be not optimal, but it works for me :)
-
 ![Claude Meter on M5Stack Core2](media/photo.jpg)
 
 ## How it works
@@ -11,21 +9,39 @@ NOTE: It is fully vibe-coded. It might be ugly, it might be not optimal, but it 
 ```
   api.anthropic.com          Your PC                M5Stack Core2
   ─────────────────          ───────────────────    ─────────────────
-                             main.py
+                             host/main.py
                                ├── claude_api.py
-  ◄── POST tiny prompt ────────┤                
-  ──── rate-limit headers ────►┤                
+  ◄── POST tiny prompt ────────┤
+  ──── rate-limit headers ────►┤
                                ├── psutil
                                │   CPU/RAM/disk
-                               │                    m5stack_server.py
+                               │                    device/main.py
                                ├────── JSON ───────►├── parse frame
                                │◄───── OK ──────────┤
                                                     └── LVGL display
 ```
 
-1. `main.py` fires a minimal API call to `api.anthropic.com` every 30 seconds and extracts the `anthropic-ratelimit-unified-*` response headers — no prompt is processed, only headers are read.
+1. `host/main.py` fires a minimal API call to `api.anthropic.com` every 30 seconds and extracts the `anthropic-ratelimit-unified-*` response headers — no prompt is processed, only headers are read.
 2. Every 5 seconds it packages Claude usage + live PC stats into a single JSON frame and sends it to the M5Stack over TCP.
 3. The M5Stack listens on port 5555, parses the frame, and refreshes the display. It also shows Wi-Fi SSID, signal strength, IP, and battery level.
+
+## Repository layout
+
+```
+claude_meter/
+├── host/               # PC-side poller
+│   ├── main.py         # entry point
+│   └── claude_api.py   # token reading + API polling
+├── device/             # M5Stack MicroPython firmware
+│   └── main.py         # uploaded to the device as /main.py
+├── tools/              # developer tooling
+│   └── deploy.py       # USB deployment script (mpremote wrapper)
+├── media/
+│   └── photo.jpg
+├── requirements.txt        # host runtime deps
+├── requirements-dev.txt    # dev/deployment deps (mpremote)
+└── README.md
+```
 
 ## Requirements
 
@@ -35,30 +51,55 @@ NOTE: It is fully vibe-coded. It might be ugly, it might be not optimal, but it 
 - Claude Code installed and signed in (token auto-detected from `~/.claude/.credentials.json` on Linux/Windows, or macOS Keychain)
 
 ```
-pip install httpx psutil
+pip install -r requirements.txt
 ```
 
 ### M5Stack side
 
 - M5Stack Core2 running **UIFlow 2** firmware
-- Upload `m5stack_server.py` via the UIFlow IDE or `mpremote`
+- Upload `device/main.py` to the device using the deploy tool (see below) or manually via the UIFlow IDE
 
 ## Setup
 
-### 1. Configure Wi-Fi on the M5Stack
+### 1. Configure Wi-Fi on the device
 
-Edit the top of [m5stack_server.py](m5stack_server.py):
+Edit the top of [device/main.py](device/main.py):
 
 ```python
 WIFI_SSID = "your-network"
 WIFI_PASS = "your-password"
 ```
 
-### 2. Find the M5Stack IP
+### 2. Deploy firmware to the device
+
+Install deployment dependencies:
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+Connect the M5Stack via USB, then:
+
+```bash
+# Auto-detect port, upload, and reset
+python tools/deploy.py
+
+# List available serial ports
+python tools/deploy.py --list
+
+# Specify a port explicitly
+python tools/deploy.py --port COM3       # Windows
+python tools/deploy.py --port /dev/ttyUSB0  # Linux
+
+# Open an interactive REPL on the device
+python tools/deploy.py --repl
+```
+
+### 3. Find the M5Stack IP
 
 Boot the device — the IP address is shown at the bottom of the screen once connected.
 
-### 3. Configure the PC poller
+### 4. Configure the PC poller
 
 The M5Stack host defaults to `192.168.50.157`. Override with an environment variable:
 
@@ -70,12 +111,12 @@ export M5_HOST=192.168.1.42
 $env:M5_HOST = "192.168.1.42"
 ```
 
-Or edit `M5STACK_HOST` directly in [main.py](main.py).
+Or edit `M5STACK_HOST` directly in [host/main.py](host/main.py).
 
-### 4. Run
+### 5. Run the poller
 
 ```bash
-python main.py
+python host/main.py
 ```
 
 Output looks like:
