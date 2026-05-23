@@ -1,107 +1,111 @@
 # Claude Meter
 
-A physical dashboard for your Claude Code rate-limit usage. Runs a Python poller on your PC/Mac/Linux machine and pushes live stats to an **M5Stack Core2** over Wi-Fi, where they are displayed in a colour-coded UI.
+A physical dashboard for Claude Code rate-limit usage. A Python poller on your PC pushes live stats to an **M5Stack Core2** over Wi-Fi.
 
 ![Claude Meter on M5Stack Core2](media/photo.jpg)
 
 ## How it works
 
 ```
-  api.anthropic.com          Your PC                M5Stack Core2
-  ─────────────────          ───────────────────    ─────────────────
-                             host/main.py
-                               ├── claude_api.py
-  ◄── POST tiny prompt ────────┤
-  ──── rate-limit headers ────►┤
-                               ├── psutil
-                               │   CPU/RAM/disk
-                               │                    device/main.py
-                               ├────── JSON ───────►├── parse frame
-                               │◄───── OK ──────────┤
+  api.anthropic.com        Your PC                  M5Stack Core2
+  ─────────────────        ──────────────────────   ─────────────────
+  ◄── POST /v1/messages ───  host/main.py
+  ──── rate-limit headers ►  └── claude_api.py
+                             └── layout.py ──────── layout frame (once)
+                             └── psutil    ──────── update frame (every 5s)
+                                                    device/main.py
                                                     └── LVGL display
 ```
 
-1. `host/main.py` fires a minimal API call to `api.anthropic.com` every 30 seconds and extracts the `anthropic-ratelimit-unified-*` response headers — no prompt is processed, only headers are read.
-2. Every 5 seconds it packages Claude usage + live PC stats into a single JSON frame and sends it to the M5Stack over TCP.
-3. The M5Stack listens on port 5555, parses the frame, and refreshes the display. It also shows Wi-Fi SSID, signal strength, IP, and battery level.
+- `host/main.py` fires a minimal API request every 30 s and reads the `anthropic-ratelimit-unified-*` response headers — no prompt is processed.
+- On first connect it sends a **layout frame** (card positions, widget types, colors) derived from `layout.json`.
+- Every 5 s it sends an **update frame** with the current values: 5h/7d utilization %, reset countdowns, CPU, RAM, disk, battery.
+- The device replies `OK\n` to each frame. If the connection drops, the layout is re-sent automatically on reconnect.
+
+## Display layout
+
+```
+┌─────────────────────────────────────────┐
+│ CLAUDE METER            14:32:07        │  header (fixed)
+│ MyNetwork -62dB         BAT:87%         │
+├─────────────────────────────────────────┤
+│ ┌── 5H LIMIT ──┐  ┌── 7D LIMIT ──────┐ │
+│ │ 42%          │  │ 18%              │ │
+│ │ rst 1h23m    │  │ rst 3d08h        │ │
+│ │ ████░░░░░░░░ │  │ ██░░░░░░░░░░░░░░ │ │
+│ └──────────────┘  └──────────────────┘ │
+│ ┌── PC STATUS ───────────────────────┐ │
+│ │ CPU  22%      RAM  61%             │ │
+│ │ ████░░░░░░    ██████░░░░░          │ │
+│ │ DISK 48%      BAT  87%             │ │
+│ │ ████░░░░░     ████████░░           │ │
+│ └────────────────────────────────────┘ │
+└─────────────────────────────────────────┘
+```
 
 ## Repository layout
 
 ```
 claude_meter/
-├── host/               # PC-side poller
-│   ├── main.py         # entry point
-│   └── claude_api.py   # token reading + API polling
-├── device/             # M5Stack MicroPython firmware
-│   └── main.py         # uploaded to the device as /main.py
-├── tools/              # developer tooling
-│   └── deploy.py       # USB deployment script (mpremote wrapper)
-├── media/
-│   └── photo.jpg
-├── requirements.txt        # host runtime deps
-├── requirements-dev.txt    # dev/deployment deps (mpremote)
+├── host/
+│   ├── main.py         # poller entry point
+│   ├── claude_api.py   # token reading + API polling
+│   └── layout.py       # loads layout.json, caches, sends to device
+├── device/
+│   └── main.py         # MicroPython firmware for M5Stack Core2
+├── tools/
+│   └── deploy.py       # USB deployment helper (mpremote wrapper)
+├── layout.json         # single source of truth: palette + UI layout
+├── requirements.txt
+├── requirements-dev.txt
 └── README.md
 ```
 
 ## Requirements
 
-### PC side
+**PC:** Python 3.11+, Claude Code installed and signed in.
 
-- Python 3.11+
-- Claude Code installed and signed in (token auto-detected from `~/.claude/.credentials.json` on Linux/Windows, or macOS Keychain)
+**Device:** M5Stack Core2 running UIFlow 2 firmware.
 
+```bash
+pip install -r requirements.txt        # runtime: httpx, psutil
+pip install -r requirements-dev.txt    # deploy tool: mpremote
 ```
-pip install -r requirements.txt
-```
-
-### M5Stack side
-
-- M5Stack Core2 running **UIFlow 2** firmware
-- Upload `device/main.py` to the device using the deploy tool (see below) or manually via the UIFlow IDE
 
 ## Setup
 
-### 1. Configure Wi-Fi on the device
+### 1. Deploy firmware
 
-Edit the top of [device/main.py](device/main.py):
-
-```python
-WIFI_SSID = "your-network"
-WIFI_PASS = "your-password"
-```
-
-### 2. Deploy firmware to the device
-
-Install deployment dependencies:
+Connect the M5Stack via USB:
 
 ```bash
-pip install -r requirements-dev.txt
+python tools/deploy.py                        # auto-detect port
+python tools/deploy.py --port COM3            # or specify port
+python tools/deploy.py --list                 # list available ports
 ```
 
-Connect the M5Stack via USB, then:
+### 2. Configure Wi-Fi on the device
 
 ```bash
-# Auto-detect port, upload, and reset
-python tools/deploy.py
-
-# List available serial ports
-python tools/deploy.py --list
-
-# Specify a port explicitly
-python tools/deploy.py --port COM3       # Windows
-python tools/deploy.py --port /dev/ttyUSB0  # Linux
-
-# Open an interactive REPL on the device
-python tools/deploy.py --repl
+python tools/deploy.py --config-set wifi_ssid=MyNetwork --config-set wifi_pass=secret
 ```
 
-### 3. Find the M5Stack IP
+This writes `/flash/config.json` on the device. Any key can be set this way:
 
-Boot the device — the IP address is shown at the bottom of the screen once connected.
+| Key | Default | Description |
+|---|---|---|
+| `wifi_ssid` | `YOUR_SSID` | Wi-Fi network name |
+| `wifi_pass` | `YOUR_PASSWORD` | Wi-Fi password |
+| `tcp_port` | `5555` | TCP port the device listens on |
 
-### 4. Configure the PC poller
+### 3. Run the poller
 
-The M5Stack host defaults to `192.168.50.157`. Override with an environment variable:
+```bash
+cd host
+python main.py
+```
+
+The device is found automatically via mDNS (`claudemeter.local`). If mDNS is unavailable, set the IP manually:
 
 ```bash
 # Linux / macOS
@@ -111,62 +115,77 @@ export M5_HOST=192.168.1.42
 $env:M5_HOST = "192.168.1.42"
 ```
 
-Or edit `M5STACK_HOST` directly in [host/main.py](host/main.py).
-
-### 5. Run the poller
-
-```bash
-python host/main.py
-```
-
-Output looks like:
+Sample output:
 
 ```
+[device] Resolved claudemeter.local → 192.168.1.42
 Running — Ctrl+C to stop
-5h  utilization : 42%  (resets in 83 min)  status=ok
-5h  remaining   : 11600 / 20000
-7d  utilization : 18%  (resets in 9603 min)  status=ok
-7d  remaining   : 82000 / 100000
-[M5] Sent to 192.168.1.42:5555
+[claude] 5h   42%  reset 83m  status=normal
+[claude] 7d   18%  reset 9603m  status=normal
+[device] Layout sent
+[device] Send failed: ...   ← device unreachable, retries automatically
 ```
 
-The M5Stack is optional — the poller prints stats to the terminal regardless of whether a device is reachable.
+The device is optional — the poller prints stats to the terminal regardless.
 
-## Configuration reference
+## Customising the layout
 
-| Variable | Default | Description |
+Everything visual is defined in `layout.json` — card positions, widget types, colors. Edit the file and restart the poller; the new layout is sent to the device on the next connect. No USB deploy needed.
+
+### Palette
+
+Seven semantic color roles:
+
+| Key | Role |
+|---|---|
+| `bg` | Screen and card background |
+| `border` | Card borders and divider lines |
+| `dim` | Subdued labels and titles |
+| `mid` | Medium-emphasis text |
+| `accent` | Primary value color |
+| `light` | High-emphasis text |
+| `bar_bg` | Progress bar track background |
+
+### Widget types
+
+| Type | Value from PC | Description |
 |---|---|---|
-| `M5_HOST` env / `M5STACK_HOST` | `192.168.50.157` | M5Stack IP address |
-| `M5_PORT` env / `M5STACK_PORT` | `5555` | TCP port on the device |
-| `CLAUDE_POLL_INTERVAL` | `30` s | How often to hit the Claude API |
-| `M5STACK_RETRY_INTERVAL` | `5` s | How often to push to the device |
+| `static_s` / `static_l` | — | Fixed text, never updated |
+| `label_s` / `label_l` | `str` | Dynamic text, small or large font |
+| `named_label_s` / `named_label_l` | `str` | Static name prefix + dynamic value |
+| `bar` | `int 0–100` | Progress fill |
 
 ## Protocol
 
-Newline-delimited JSON (NDJSON) over a raw TCP socket. The PC sends one frame per push; the device replies `OK\n`.
+NDJSON over TCP. One frame per connection — the device reads one newline-terminated frame, replies `OK\n`, and closes.
 
+**Layout frame** (sent once per session, re-sent on reconnect):
 ```json
 {
-  "v": 1,
-  "5h_utilization_pct": 42,
-  "5h_reset_minutes": 83,
-  "5h_status": "ok",
-  "7d_utilization_pct": 18,
-  "7d_reset_minutes": 9603,
-  "7d_status": "ok",
-  "tokens_remaining_5h": 11600,
-  "tokens_limit_5h": 20000,
-  "tokens_remaining_7d": 82000,
-  "tokens_limit_7d": 100000,
-  "pc_time": "14:32:01",
-  "pc_cpu": 22.4,
-  "pc_ram": 61.0,
-  "pc_disk": 48.2
+  "cmd": "layout",
+  "palette": { "bg": 0, "border": 8933945, "..." : "..." },
+  "groups": [
+    {
+      "id": "card_5h", "x": 6, "y": 45, "w": 150, "h": 92,
+      "widgets": [
+        { "id": "5h_val", "type": "label_l", "x": 8, "y": 18, "color": 16375995 }
+      ]
+    }
+  ]
 }
 ```
 
-`v` is a schema version integer. Adding new fields is always backwards-compatible. If a breaking change is needed, `v` is incremented so the device firmware can detect and handle it.
-
-## Linux / macOS notes
-
-Works out of the box. The disk usage path is automatically set to `/` on non-Windows systems. Token is read from `~/.claude/.credentials.json` (Linux) or the macOS Keychain.
+**Update frame** (sent every 5 s):
+```json
+{
+  "cmd": "update",
+  "values": {
+    "5h_val": "42%", "5h_rst": "rst 1h23m", "5h_bar": 42,
+    "7d_val": "18%", "7d_rst": "rst 3d08h", "7d_bar": 18,
+    "cpu": "22%", "cpu_bar": 22,
+    "ram": "61%", "ram_bar": 61,
+    "disk": "48%", "disk_bar": 48,
+    "bat": "87%", "bat_bar": 87
+  }
+}
+```
