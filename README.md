@@ -8,7 +8,7 @@ NOTE: It is fully vibe-coded. It might be ugly, it might be not optimal, but it 
 
 ## How it works
 
-```
+```txt
   api.anthropic.com          Your PC                M5Stack Core2
   ─────────────────          ───────────────────    ─────────────────
                              main.py
@@ -34,7 +34,7 @@ NOTE: It is fully vibe-coded. It might be ugly, it might be not optimal, but it 
 - Python 3.11+
 - Claude Code installed and signed in (token auto-detected from `~/.claude/.credentials.json` on Linux/Windows, or macOS Keychain)
 
-```
+```sh
 pip install httpx psutil
 ```
 
@@ -80,7 +80,7 @@ python main.py
 
 Output looks like:
 
-```
+```txt
 Running — Ctrl+C to stop
 5h  utilization : 42%  (resets in 83 min)  status=ok
 5h  remaining   : 11600 / 20000
@@ -91,10 +91,27 @@ Running — Ctrl+C to stop
 
 The M5Stack is optional — the poller prints stats to the terminal regardless of whether a device is reachable.
 
+## Device controls
+
+| Button | Short press | Long press |
+| --- | --- | --- |
+| **A** (left) | Decrease brightness | — |
+| **B** (middle) | Toggle screen on/off | Open / close settings |
+| **C** (right) | Increase brightness | — |
+
+### Settings popup
+
+Long-press **B** to open the settings overlay. From there you can:
+
+- **Theme** — choose from 6 colour themes (Ember, Ocean, Void, Dusk, B&W, Light). The active theme is highlighted. Changes apply immediately and are saved to the device's NVS flash.
+- **Brightness** — use the **−** / **+** buttons to adjust. Also saved to NVS.
+
+Tap outside the popup or long-press **B** again to close it.
+
 ## Configuration reference
 
 | Variable | Default | Description |
-|---|---|---|
+| --- | --- | --- |
 | `M5_HOST` env / `M5STACK_HOST` | `192.168.50.157` | M5Stack IP address |
 | `M5_PORT` env / `M5STACK_PORT` | `5555` | TCP port on the device |
 | `CLAUDE_POLL_INTERVAL` | `30` s | How often to hit the Claude API |
