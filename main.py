@@ -22,8 +22,8 @@ CLAUDE_POLL_INTERVAL = 30     # seconds between API calls
 
 PROTOCOL_VERSION = 1
 
-# Cross-platform root disk path
-_DISK_PATH = "/" if sys.platform != "win32" else "C:\\"
+# Cross-platform disk path — home dir covers the real partition on Linux, C:\ on Windows
+_DISK_PATH = os.path.expanduser("~") if sys.platform != "win32" else "C:\\"
 
 
 def send_to_m5stack(payload: dict) -> bool:
