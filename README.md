@@ -4,34 +4,34 @@ A physical dashboard for your Claude Code rate-limit usage. Runs a Python poller
 
 ```
 ┌─────────────────────────────────────┐
-│  CLAUDE METER          14:32  BAT:82%│
+│ CLAUDE METER        BAT:82%  14:32  │
 ├──────────────────┬──────────────────┤
-│  5H LIMIT        │  7D LIMIT        │
-│  42%             │  18%             │
-│  rst 1h23m       │  rst 6d04h       │
-│  ████░░░░░░░░░░  │  ██░░░░░░░░░░░░  │
+│ 5H LIMIT         │ 7D LIMIT         │
+│ 42%              │ 18%              │
+│ rst 1h23m        │ rst 6d04h        │
+│ ████░░░░░░░░░░░  │ ██░░░░░░░░░░░░░  │
 ├──────────────────┴──────────────────┤
-│  CPU 22%  ████░░░░░  RAM 61% ███████│
-│  DISK 48% ████████░░░░░░░░░░░░░░░░  │
+│ CPU 22%  ████░░░░░░  RAM 61% █████░ │
+│ DISK 48% ████████████████░░░░░░░░░  │
 └─────────────────────────────────────┘
-│  MyWifi -54dB  192.168.1.42:5555    │
+   MyWifi -54dB  192.168.1.42:5555
 ```
 
 ## How it works
 
 ```
-Your PC                          M5Stack Core2
-────────────────────             ─────────────────────
-main.py
-  │
-  ├─ claude_api.py ──► POST api.anthropic.com
-  │                    (reads rate-limit headers)
-  │
-  ├─ psutil ─────────► CPU / RAM / disk %
-  │
-  └─ TCP socket ─────► m5stack_server.py
-     JSON + "\n"          └─ updates LVGL display
-     ◄── "OK\n" ──────────
+  api.anthropic.com          Your PC                M5Stack Core2
+  ─────────────────          ───────────────────    ─────────────────
+                             main.py
+                               ├── claude_api.py
+  ◄── POST tiny prompt ────────┤                
+  ──── rate-limit headers ────►┤                
+                               ├── psutil
+                               │   CPU/RAM/disk
+                               │                    m5stack_server.py
+                               ├────── JSON ───────►├── parse frame
+                               │◄───── OK ──────────┤
+                                                    └── LVGL display
 ```
 
 1. `main.py` fires a minimal API call to `api.anthropic.com` every 30 seconds and extracts the `anthropic-ratelimit-unified-*` response headers — no prompt is processed, only headers are read.
