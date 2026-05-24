@@ -2,7 +2,7 @@
 
 A physical dashboard for Claude Code rate-limit usage. A Python app on your PC reads the `anthropic-ratelimit-*` headers, mixes in local PC stats, and pushes live values to an **M5Stack Core2** over Wi-Fi.
 
-![Claude Meter on M5Stack Core2](media/image.png)
+![Claude Meter on M5Stack Core2](media/image_device.png)
 
 ## How it works
 
@@ -97,6 +97,8 @@ CLI flags:
 | `--set-wifi-ssid SSID --set-wifi-pass PW` | Push new Wi-Fi credentials to the device and exit. Used together. |
 
 **TUI:**
+
+![TUI](media/image_tui.png)
 
 ```bash
 cd host
