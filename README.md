@@ -1,172 +1,201 @@
 # Claude Meter
 
-A physical dashboard for your Claude Code rate-limit usage. Runs a Python poller on your PC/Mac/Linux machine and pushes live stats to an **M5Stack Core2** over Wi-Fi, where they are displayed in a colour-coded UI.
+A physical dashboard for Claude Code rate-limit usage. A Python app on your PC reads the `anthropic-ratelimit-*` headers, mixes in local PC stats, and pushes live values to an **M5Stack Core2** over Wi-Fi.
 
-![Claude Meter on M5Stack Core2](media/photo.jpg)
+![Claude Meter on M5Stack Core2](media/image_device.png)
 
 ## How it works
 
 ```
-  api.anthropic.com          Your PC                M5Stack Core2
-  ─────────────────          ───────────────────    ─────────────────
-                             host/main.py
-                               ├── claude_api.py
-  ◄── POST tiny prompt ────────┤
-  ──── rate-limit headers ────►┤
-                               ├── psutil
-                               │   CPU/RAM/disk
-                               │                    device/main.py
-                               ├────── JSON ───────►├── parse frame
-                               │◄───── OK ──────────┤
-                                                    └── LVGL display
+  api.anthropic.com         Your PC                    M5Stack Core2
+  ─────────────────         ───────────────────────    ─────────────────
+  ◄── POST /v1/messages ──  host/core/engine.py
+  ──── rate-limit headers ► ├── data_source/claude_api.py
+                            ├── data_source/pc_stats.py
+                            └── core/device.py  ──────  device/main.py
+                                  layout frame (once)   └── LVGL display
+                                  update frame (5 s)
+                                  wifi   frame (on demand)
 ```
 
-1. `host/main.py` fires a minimal API call to `api.anthropic.com` every 30 seconds and extracts the `anthropic-ratelimit-unified-*` response headers — no prompt is processed, only headers are read.
-2. Every 5 seconds it packages Claude usage + live PC stats into a single JSON frame and sends it to the M5Stack over TCP.
-3. The M5Stack listens on port 5555, parses the frame, and refreshes the display. It also shows Wi-Fi SSID, signal strength, IP, and battery level.
+- Every 30 s the engine fires a minimal `/v1/messages` request and reads the `anthropic-ratelimit-unified-*` response headers — no prompt is processed, no tokens are spent on content.
+- On first connect it sends a **layout frame** (cards, widget positions, palette) derived from `host/config/layout.json`. On any send failure the layout is re-sent automatically on next connect.
+- Every 5 s it sends an **update frame** with the current values: 5h/7d utilization %, reset countdown, CPU, RAM, disk, battery.
+- A **wifi frame** can be sent on demand to change the device's stored Wi-Fi credentials over the network.
 
-## Repository layout
+The device is optional — if no IP is configured (CLI) or set (TUI), the host still prints stats to the terminal.
 
-```
-claude_meter/
-├── host/               # PC-side poller
-│   ├── main.py         # entry point
-│   └── claude_api.py   # token reading + API polling
-├── device/             # M5Stack MicroPython firmware
-│   └── main.py         # uploaded to the device as /main.py
-├── tools/              # developer tooling
-│   └── deploy.py       # USB deployment script (mpremote wrapper)
-├── media/
-│   └── photo.jpg
-├── requirements.txt        # host runtime deps
-├── requirements-dev.txt    # dev/deployment deps (mpremote)
-└── README.md
-```
 
 ## Requirements
 
-### PC side
+**PC:** Python 3.11+, Claude Code installed and signed in (the host reads its OAuth token).
 
-- Python 3.11+
-- Claude Code installed and signed in (token auto-detected from `~/.claude/.credentials.json` on Linux/Windows, or macOS Keychain)
+**Device:** M5Stack Core2 running UIFlow 2 firmware.
 
+```bash
+pip install -r requirements.txt        # runtime: httpx, psutil, textual
+pip install -r requirements-dev.txt    # deploy tool: mpremote
 ```
-pip install -r requirements.txt
-```
-
-### M5Stack side
-
-- M5Stack Core2 running **UIFlow 2** firmware
-- Upload `device/main.py` to the device using the deploy tool (see below) or manually via the UIFlow IDE
 
 ## Setup
 
-### 1. Configure Wi-Fi on the device
+### 1. Deploy firmware
 
-Edit the top of [device/main.py](device/main.py):
-
-```python
-WIFI_SSID = "your-network"
-WIFI_PASS = "your-password"
-```
-
-### 2. Deploy firmware to the device
-
-Install deployment dependencies:
+Connect the M5Stack via USB:
 
 ```bash
-pip install -r requirements-dev.txt
+python tools/deploy.py                  # auto-detect port
+python tools/deploy.py --port COM3      # or specify port
+python tools/deploy.py --list           # list available ports
+python tools/deploy.py --repl           # interactive REPL on the device
 ```
 
-Connect the M5Stack via USB, then:
+### 2. Configure Wi-Fi (first time, over USB)
 
 ```bash
-# Auto-detect port, upload, and reset
-python tools/deploy.py
-
-# List available serial ports
-python tools/deploy.py --list
-
-# Specify a port explicitly
-python tools/deploy.py --port COM3       # Windows
-python tools/deploy.py --port /dev/ttyUSB0  # Linux
-
-# Open an interactive REPL on the device
-python tools/deploy.py --repl
+python tools/deploy.py --config-set wifi_ssid=MyNetwork --config-set wifi_pass=secret
 ```
 
-### 3. Find the M5Stack IP
+This writes `/flash/config.json` on the device. Supported keys:
 
-Boot the device — the IP address is shown at the bottom of the screen once connected.
+| Key | Default | Description |
+|---|---|---|
+| `wifi_ssid` | `YOUR_SSID` | Wi-Fi network name |
+| `wifi_pass` | `YOUR_PASSWORD` | Wi-Fi password |
+| `tcp_port` | `5555` | TCP port the device listens on |
 
-### 4. Configure the PC poller
+After the device boots and joins Wi-Fi, note its IP from the header on the display.
 
-The M5Stack host defaults to `192.168.50.157`. Override with an environment variable:
+### 3. Run the host
+
+You can drive the device from either the CLI or the TUI.
+
+**CLI:**
 
 ```bash
-# Linux / macOS
-export M5_HOST=192.168.1.42
-
-# Windows PowerShell
-$env:M5_HOST = "192.168.1.42"
+cd host
+python cli.py --ip 192.168.1.42
 ```
 
-Or edit `M5STACK_HOST` directly in [host/main.py](host/main.py).
-
-### 5. Run the poller
-
-```bash
-python host/main.py
-```
-
-Output looks like:
+Sample output:
 
 ```
 Running — Ctrl+C to stop
-5h  utilization : 42%  (resets in 83 min)  status=ok
-5h  remaining   : 11600 / 20000
-7d  utilization : 18%  (resets in 9603 min)  status=ok
-7d  remaining   : 82000 / 100000
-[M5] Sent to 192.168.1.42:5555
+[claude] 5h   42%  reset 83m  status=normal
+[claude] 7d   18%  reset 9603m  status=normal
+[device] Layout sent  palette=sahara
+[device] Send failed: ...        ← device unreachable, retries automatically
 ```
 
-The M5Stack is optional — the poller prints stats to the terminal regardless of whether a device is reachable.
+CLI flags:
 
-## Configuration reference
+| Flag | Description |
+|---|---|
+| `--ip ADDR` | **Required.** Device IP. |
+| `--layout FILE` | Override `host/config/layout.json`. |
+| `--palette NAME` | Theme name from `_themes` in `layout.json` (default `sahara`). |
+| `--set-wifi-ssid SSID --set-wifi-pass PW` | Push new Wi-Fi credentials to the device and exit. Used together. |
 
-| Variable | Default | Description |
+**TUI:**
+
+![TUI](media/image_tui.png)
+
+```bash
+cd host
+python tui.py
+```
+
+The TUI lets you pick a palette, set the device IP, test the connection, push the layout, run/stop the polling engine, and update the device's Wi-Fi credentials — all interactively. The chosen IP and palette persist in `host/config/tui_state.json`; Wi-Fi credentials are never persisted on the host.
+
+## Updating Wi-Fi over the network
+
+Once the device is on Wi-Fi, you can change its stored credentials without touching USB:
+
+```bash
+python cli.py --ip 192.168.1.42 --set-wifi-ssid NewNetwork --set-wifi-pass hunter2
+```
+
+Or in the TUI, fill in the Wi-Fi fields in the right panel and press **Save Wi-Fi**.
+
+The device writes `/flash/config.json` and reboots immediately. If the new credentials are wrong it will fail to reconnect — recover over USB.
+
+## Customising the layout
+
+Everything visual lives in `host/config/layout.json` — palettes, card positions, widgets, colors. Edit the file and restart the host; the new layout is sent to the device on the next connect. No USB redeploy needed.
+
+### Palettes
+
+`layout.json` ships with several themes under `_themes` (e.g. `sahara`, `ember`, `ocean`, `void`, `dusk`, `bw`, `light`). Each theme defines six semantic color roles:
+
+| Key | Role |
+|---|---|
+| `background` | Screen and card background |
+| `border` | Card borders, divider lines, subdued labels |
+| `secondary_light` | Medium-emphasis accent |
+| `primary_dark` | Bar fills and secondary values |
+| `primary_light` | Primary value text |
+| `secondary_dark` | Progress bar track background |
+
+Anywhere a `"color"` field appears in a widget, you can reference a palette key by name (`"primary_light"`) instead of hard-coding a hex value — colors are resolved against the active palette on the device.
+
+### Widget types
+
+| Type | Value from PC | Description |
 |---|---|---|
-| `M5_HOST` env / `M5STACK_HOST` | `192.168.50.157` | M5Stack IP address |
-| `M5_PORT` env / `M5STACK_PORT` | `5555` | TCP port on the device |
-| `CLAUDE_POLL_INTERVAL` | `30` s | How often to hit the Claude API |
-| `M5STACK_RETRY_INTERVAL` | `5` s | How often to push to the device |
+| `static_s` / `static_l` | — | Fixed text, never updated |
+| `label_s` / `label_l` | `str` | Dynamic text, small or large font |
+| `named_label_s` / `named_label_l` | `str` | Static name prefix + dynamic value |
+| `bar` | `int 0–100` | Progress fill |
+
+Each widget references a value with `"source"` (e.g. `"claude.5h.usage.str"`, `"pc.cpu.usage.int"`); see `host/data_source/data_sources.py` for the full pool.
+
+### Brightness
+
+On the device, hold button **A** to decrease and **C** to increase screen brightness (steps of 10, clamped 10–100).
 
 ## Protocol
 
-Newline-delimited JSON (NDJSON) over a raw TCP socket. The PC sends one frame per push; the device replies `OK\n`.
+NDJSON over TCP, port 5555. One frame per connection — the host opens a socket, sends one newline-terminated JSON object, reads `OK\n`, and closes.
+
+**Layout frame** (sent once per session, re-sent on reconnect):
 
 ```json
 {
-  "v": 1,
-  "5h_utilization_pct": 42,
-  "5h_reset_minutes": 83,
-  "5h_status": "ok",
-  "7d_utilization_pct": 18,
-  "7d_reset_minutes": 9603,
-  "7d_status": "ok",
-  "tokens_remaining_5h": 11600,
-  "tokens_limit_5h": 20000,
-  "tokens_remaining_7d": 82000,
-  "tokens_limit_7d": 100000,
-  "pc_time": "14:32:01",
-  "pc_cpu": 22.4,
-  "pc_ram": 61.0,
-  "pc_disk": 48.2
+  "cmd": "layout",
+  "palette": { "background": 0, "border": 6433556, "...": "..." },
+  "groups": [
+    {
+      "id": "card_5h", "x": 6, "y": 45, "w": 150, "h": 92,
+      "widgets": [
+        { "id": "5h_val", "type": "label_l", "x": 8, "y": 18, "color": "primary_light" }
+      ]
+    }
+  ]
 }
 ```
 
-`v` is a schema version integer. Adding new fields is always backwards-compatible. If a breaking change is needed, `v` is incremented so the device firmware can detect and handle it.
+**Update frame** (sent every 5 s):
 
-## Linux / macOS notes
+```json
+{
+  "cmd": "update",
+  "values": {
+    "5h_val": "42%", "5h_rst": "rst 1h23m", "5h_bar": 42,
+    "7d_val": "18%", "7d_rst": "rst 3d08h", "7d_bar": 18,
+    "cpu":    "22%", "cpu_bar":  22,
+    "ram":    "61%", "ram_bar":  61,
+    "disk":   "48%", "disk_bar": 48,
+    "bat":    "87%", "bat_bar":  87
+  }
+}
+```
 
-Works out of the box. The disk usage path is automatically set to `/` on non-Windows systems. Token is read from `~/.claude/.credentials.json` (Linux) or the macOS Keychain.
+**Wi-Fi frame** (sent on demand; device acks `OK`, writes `/flash/config.json`, then reboots):
+
+```json
+{ "cmd": "wifi", "ssid": "MyNetwork", "password": "hunter2" }
+```
+
+## Acknowledgements
+
+Special thanks to [@xrevv](https://github.com/xrevv) for the display brightness control mechanism and the color palettes.

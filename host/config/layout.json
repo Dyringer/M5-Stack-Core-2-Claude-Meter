@@ -1,0 +1,97 @@
+{
+  "_themes": {
+    "sahara": {
+      "background":      "0x000000",
+      "border":          "0x884A39",
+      "secondary_light": "0xC38154",
+      "primary_dark":    "0xFFC26F",
+      "primary_light":   "0xF9E0BB",
+      "secondary_dark":  "0x1A0A00"
+    },
+    "ember": {
+      "background":      "0x000000",
+      "border":          "0x622b14",
+      "secondary_light": "0x995f2f",
+      "primary_dark":    "0x978f66",
+      "primary_light":   "0xe4d6a9",
+      "secondary_dark":  "0x1a0e08"
+    },
+    "ocean": {
+      "background":      "0x00080f",
+      "border":          "0x0d3d5e",
+      "secondary_light": "0x1a6fa0",
+      "primary_dark":    "0x4ea8c8",
+      "primary_light":   "0xa8ddf0",
+      "secondary_dark":  "0x020810"
+    },
+    "void": {
+      "background":      "0x000000",
+      "border":          "0x0f2e0f",
+      "secondary_light": "0x1a5e1a",
+      "primary_dark":    "0x38924a",
+      "primary_light":   "0x76c442",
+      "secondary_dark":  "0x040904"
+    },
+    "dusk": {
+      "background":      "0x050008",
+      "border":          "0x3a1260",
+      "secondary_light": "0x7a2ebc",
+      "primary_dark":    "0xa06ad0",
+      "primary_light":   "0xd8a8f8",
+      "secondary_dark":  "0x0e061a"
+    },
+    "bw": {
+      "background":      "0x000000",
+      "border":          "0xffffff",
+      "secondary_light": "0xdddddd",
+      "primary_dark":    "0xaaaaaa",
+      "primary_light":   "0xffffff",
+      "secondary_dark":  "0x2a2a2a"
+    },
+    "light": {
+      "background":      "0xf5f0e8",
+      "border":          "0xd0c0a8",
+      "secondary_light": "0x7a5010",
+      "primary_dark":    "0x4a7030",
+      "primary_light":   "0x1a100a",
+      "secondary_dark":  "0xe0d8c8"
+    }
+  },
+  "groups": [
+    {
+      "id": "card_5h",
+      "x": 6, "y": 45, "w": 150, "h": 92,
+      "widgets": [
+        { "id": "5h_title", "type": "static_s", "x": 8, "y":  4, "text": "5H LIMIT", "color": "border"                                                        },
+        { "id": "5h_val",   "type": "label_l",  "x": 8, "y": 18,                      "color": "primary_light",  "source": "claude.5h.usage.str"               },
+        { "id": "5h_rst",   "type": "label_s",  "x": 8, "y": 50,                      "color": "border",         "source": "claude.5h.reset.str"               },
+        { "id": "5h_bar",   "type": "bar",       "x": 8, "y": 66, "w": 130,           "color": "primary_dark",   "source": "claude.5h.usage.int", "bg": "secondary_dark" }
+      ]
+    },
+    {
+      "id": "card_7d",
+      "x": 162, "y": 45, "w": 152, "h": 92,
+      "widgets": [
+        { "id": "7d_title", "type": "static_s", "x": 8, "y":  4, "text": "7D LIMIT", "color": "border"                                                        },
+        { "id": "7d_val",   "type": "label_l",  "x": 8, "y": 18,                      "color": "primary_light",  "source": "claude.7d.usage.str"               },
+        { "id": "7d_rst",   "type": "label_s",  "x": 8, "y": 50,                      "color": "border",         "source": "claude.7d.reset.str"               },
+        { "id": "7d_bar",   "type": "bar",       "x": 8, "y": 66, "w": 134,           "color": "primary_dark",   "source": "claude.7d.usage.int", "bg": "secondary_dark" }
+      ]
+    },
+    {
+      "id": "card_pc",
+      "x": 6, "y": 146, "w": 308, "h": 90,
+      "widgets": [
+        { "id": "pc_title", "type": "static_s",      "x":   8, "y":  4, "text": "PC STATUS", "color": "border"                                                                                      },
+        { "id": "cpu",      "type": "named_label_s", "x":   8, "y": 18, "name": "CPU",  "name_color": "border", "color": "primary_dark",  "source": "pc.cpu.usage.str"                             },
+        { "id": "cpu_bar",  "type": "bar",           "x":   8, "y": 32, "w": 136,                               "color": "primary_dark",  "source": "pc.cpu.usage.int",  "bg": "secondary_dark"   },
+        { "id": "ram",      "type": "named_label_s", "x": 156, "y": 18, "name": "RAM",  "name_color": "border", "color": "primary_dark",  "source": "pc.ram.usage.str"                             },
+        { "id": "ram_bar",  "type": "bar",           "x": 156, "y": 32, "w": 144,                               "color": "primary_dark",  "source": "pc.ram.usage.int",  "bg": "secondary_dark"   },
+        { "id": "disk",     "type": "named_label_s", "x":   8, "y": 48, "name": "DISK", "name_color": "border", "color": "primary_dark",  "source": "pc.disk.usage.str"                            },
+        { "id": "disk_bar", "type": "bar",           "x":   8, "y": 62, "w": 136,                               "color": "primary_dark",  "source": "pc.disk.usage.int", "bg": "secondary_dark"   },
+        { "id": "bat",      "type": "named_label_s", "x": 156, "y": 48, "name": "BAT",  "name_color": "border", "color": "primary_light", "source": "pc.bat.level.str"                             },
+        { "id": "bat_bar",  "type": "bar",           "x": 156, "y": 62, "w": 144,                               "color": "primary_light", "source": "pc.bat.level.int",  "bg": "secondary_dark"   }
+      ]
+    }
+  ]
+}
