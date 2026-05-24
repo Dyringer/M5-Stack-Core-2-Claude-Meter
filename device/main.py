@@ -1,4 +1,4 @@
-import os, sys, io
+import os
 import M5
 from M5 import *
 import m5ui
@@ -9,6 +9,9 @@ import json
 import time
 
 
+CONFIG_PATH = "/flash/config.json"
+
+
 def load_config():
     defaults = {
         "wifi_ssid": "YOUR_SSID",
@@ -16,12 +19,26 @@ def load_config():
         "tcp_port":  5555,
     }
     try:
-        with open("/flash/config.json") as fh:
+        with open(CONFIG_PATH) as fh:
             stored = json.load(fh)
         defaults.update(stored)
     except Exception:
         pass
     return defaults
+
+
+def save_config(updates):
+    """Merge updates into the on-disk config and persist atomically."""
+    try:
+        with open(CONFIG_PATH) as fh:
+            current = json.load(fh)
+    except Exception:
+        current = {}
+    current.update(updates)
+    tmp = CONFIG_PATH + ".tmp"
+    with open(tmp, "w") as fh:
+        json.dump(current, fh)
+    os.rename(tmp, CONFIG_PATH)
 
 
 # Grayscale defaults — render the header immediately at boot before host connects.
@@ -38,6 +55,7 @@ fonts = {}
 SCREEN_W, SCREEN_H = 320, 240
 
 widget_registry = {}
+group_cards: list = []
 label_title  = None
 label_time   = None
 label_bat    = None
@@ -190,9 +208,13 @@ def build_layout(groups, new_palette=None):
     if new_palette:
         palette.update(new_palette)
         apply_header_palette()
+    for card in group_cards:
+        card.delete()
+    group_cards.clear()
     widget_registry.clear()
     for group in groups:
         card = make_card(screen, group["x"], group["y"], group["w"], group["h"])
+        group_cards.append(card)
         for widget_cfg in group.get("widgets", []):
             build_widget(card, widget_cfg)
 
@@ -230,11 +252,6 @@ def update_values(values):
 def connect_wifi(cfg):
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
-    try:
-        network.hostname("claudemeter")
-        print("hostname: claudemeter.local")
-    except Exception as e:
-        print("hostname error: {}".format(e))
     if not wlan.isconnected():
         wlan.connect(cfg["wifi_ssid"], cfg["wifi_pass"])
         deadline = time.time() + 20
@@ -409,10 +426,23 @@ def _handle_client(conn):
         elif cmd == "update":
             update_values(data.get("values", {}))
             conn.send(b"OK\n")
+        elif cmd == "wifi":
+            save_config({"wifi_ssid": data["ssid"], "wifi_pass": data["password"]})
+            conn.send(b"OK\n")
+            try:
+                conn.close()
+            except Exception:
+                pass
+            time.sleep(0.2)
+            import machine
+            machine.reset()
     except Exception as error:
         print("ERR: {}".format(error))
     finally:
-        conn.close()
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 def run_server(wlan, tcp_port):

@@ -6,7 +6,8 @@
       "Bash(Get-ChildItem -Path \"d:\\\\projects\\\\claude_meter\" -Recurse -Depth 3)",
       "Bash(Select-Object FullName, PSIsContainer)",
       "Bash(Sort-Object FullName)",
-      "Bash(grep -E '\\\\.\\(py|json|txt|md\\)$')"
+      "Bash(grep -E '\\\\.\\(py|json|txt|md\\)$')",
+      "Bash(git -C /d/projects/claude_meter log --oneline -10)"
     ]
   }
 }

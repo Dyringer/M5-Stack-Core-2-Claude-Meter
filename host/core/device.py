@@ -5,10 +5,11 @@ import pathlib
 import socket
 import sys
 
+
 DEVICE_PORT    = 5555
 DEVICE_TIMEOUT = 5   # seconds per TCP connect/recv
 
-_DEFAULT_LAYOUT  = pathlib.Path(__file__).parent / "config" / "layout.json"
+_DEFAULT_LAYOUT  = pathlib.Path(__file__).parent.parent / "config" / "layout.json"
 _DEFAULT_PALETTE = "sahara"
 
 
@@ -44,26 +45,16 @@ def _load_layout(path: pathlib.Path, palette_name: str) -> tuple[dict, dict]:
 
 class Device:
     def __init__(self,
-                 ip:      str          | None = None,
+                 ip:      str,
                  layout:  pathlib.Path | None = None,
                  palette: str          | None = None) -> None:
-        self._ip           = ip if ip else self._resolve()
+        if not ip:
+            raise RuntimeError("Device IP is required.")
+        self._ip           = ip
         self._layout_file  = layout  or _DEFAULT_LAYOUT
         self._palette_name = palette or _DEFAULT_PALETTE
         self._layout_sent  = False
         self._mapping:     dict = {}
-
-    @staticmethod
-    def _resolve() -> str:
-        try:
-            ip = socket.getaddrinfo("claudemeter.local", DEVICE_PORT)[0][4][0]
-            print(f"[device] Resolved claudemeter.local → {ip}")
-            return ip
-        except OSError as exc:
-            raise RuntimeError(
-                "Could not resolve claudemeter.local — "
-                "is the device on the network? Pass --ip <address> to connect directly."
-            ) from exc
 
     def _send_frame(self, frame: dict) -> bool:
         """Open a connection, send one newline-terminated JSON frame, read OK."""
@@ -74,6 +65,25 @@ class Device:
             return True
         except OSError as error:
             print(f"[device] Send failed: {error}", file=sys.stderr)
+            return False
+
+    def push_wifi(self, ssid: str, password: str) -> bool:
+        """Send new wifi credentials. Device persists them and reboots.
+
+        Returns True if the device acked before resetting. The TCP socket
+        will drop right after the ack — that's expected, not an error."""
+        frame = {"cmd": "wifi", "ssid": ssid, "password": password}
+        try:
+            with socket.create_connection((self._ip, DEVICE_PORT), timeout=DEVICE_TIMEOUT) as sock:
+                sock.sendall((json.dumps(frame) + "\n").encode())
+                try:
+                    ack = sock.recv(64)
+                except OSError:
+                    # Device may reset before we read; treat as success if send went out.
+                    return True
+                return bool(ack)
+        except OSError as error:
+            print(f"[device] Wi-Fi push failed: {error}", file=sys.stderr)
             return False
 
     def push(self, data_pool: dict) -> None:
