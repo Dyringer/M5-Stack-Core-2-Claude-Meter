@@ -2,7 +2,7 @@
 
 A physical dashboard for Claude Code rate-limit usage. A Python poller on your PC pushes live stats to an **M5Stack Core2** over Wi-Fi.
 
-![Claude Meter on M5Stack Core2](media/photo.jpg)
+![Claude Meter on M5Stack Core2](media/image.png)
 
 ## How it works
 
@@ -22,26 +22,6 @@ A physical dashboard for Claude Code rate-limit usage. A Python poller on your P
 - Every 5 s it sends an **update frame** with the current values: 5h/7d utilization %, reset countdowns, CPU, RAM, disk, battery.
 - The device replies `OK\n` to each frame. If the connection drops, the layout is re-sent automatically on reconnect.
 
-## Display layout
-
-```
-┌─────────────────────────────────────────┐
-│ CLAUDE METER            14:32:07        │  header (fixed)
-│ MyNetwork -62dB         BAT:87%         │
-├─────────────────────────────────────────┤
-│ ┌── 5H LIMIT ──┐  ┌── 7D LIMIT ──────┐ │
-│ │ 42%          │  │ 18%              │ │
-│ │ rst 1h23m    │  │ rst 3d08h        │ │
-│ │ ████░░░░░░░░ │  │ ██░░░░░░░░░░░░░░ │ │
-│ └──────────────┘  └──────────────────┘ │
-│ ┌── PC STATUS ───────────────────────┐ │
-│ │ CPU  22%      RAM  61%             │ │
-│ │ ████░░░░░░    ██████░░░░░          │ │
-│ │ DISK 48%      BAT  87%             │ │
-│ │ ████░░░░░     ████████░░           │ │
-│ └────────────────────────────────────┘ │
-└─────────────────────────────────────────┘
-```
 
 ## Repository layout
 

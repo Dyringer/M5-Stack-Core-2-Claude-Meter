@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(.venv\\\\Scripts\\\\pip install zeroconf --quiet)",
+      "PowerShell(.venv\\\\Scripts\\\\python -c \"from zeroconf import ServiceBrowser, Zeroconf; print\\('zeroconf OK'\\)\")",
+      "Bash(Get-ChildItem -Path \"d:\\\\projects\\\\claude_meter\" -Recurse -Depth 3)",
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(Sort-Object FullName)",
+      "Bash(grep -E '\\\\.\\(py|json|txt|md\\)$')"
+    ]
+  }
+}
